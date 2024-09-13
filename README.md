@@ -4,6 +4,7 @@
 
 即時聊天應用程式
 
+[![IMAGE ALT TEXT](https://i.imgur.com/g75V70u.png)](http://www.youtube.com/watch?v=nZJ6o8ySyM4 "Chatapp")
 ## 專案簡介
 
 本專案是一個基於 **Angular**、**NestJS** 和 **FastAPI** 的即時聊天應用程式，支援持續聊天和串流式訊息傳遞。使用者可以在網頁上與 AI 進行即時的聊天互動，體驗流暢的對話過程。
