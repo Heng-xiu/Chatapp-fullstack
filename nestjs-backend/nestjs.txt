@@ -1,0 +1,70 @@
+// app.module.ts
+import { Module } from '@nestjs/common';
+import { ChatController } from './chat.controller';
+import { HttpModule } from '@nestjs/axios';
+
+@Module({
+  imports: [HttpModule],
+  controllers: [ChatController],
+})
+export class AppModule {}
+
+// chat.controller.ts
+import { Controller, Post, Sse, MessageEvent, Body, Res } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { Observable, interval } from 'rxjs';
+import { map, mergeMap } from 'rxjs/operators';
+import { Response } from 'express';
+
+@Controller('chat')
+export class ChatController {
+  constructor(private httpService: HttpService) {}
+
+  @Sse('sse')
+  sse(): Observable<MessageEvent> {
+    return interval(1000).pipe(
+      map(() => ({ data: JSON.stringify({ type: 'heartbeat' }) } as MessageEvent))
+    );
+  }
+
+  @Post()
+  chat(@Body() body: { message: string }, @Res() res: Response) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    this.httpService.post('http://localhost:8000/chat', { message: body.message }, {
+      responseType: 'stream'
+    }).subscribe(
+      response => {
+        response.data.on('data', (chunk: Buffer) => {
+          const content = chunk.toString();
+          res.write(`data: ${JSON.stringify({ type: 'chunk', content })}\n\n`);
+        });
+        response.data.on('end', () => {
+          res.write(`data: ${JSON.stringify({ type: 'end' })}\n\n`);
+          res.end();
+        });
+      },
+      error => {
+        console.error(error);
+        res.status(500).json({ error: 'An error occurred' });
+      }
+    );
+  }
+}
+
+// main.ts
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: 'http://localhost:4200',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+  await app.listen(3000);
+}
+bootstrap();
